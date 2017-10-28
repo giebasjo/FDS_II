@@ -1,0 +1,88 @@
+---
+title: "Homework 1"
+author: "Jordan Giebas"
+date: "Due Wednesday, November 1 at 5:30 PM"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(quantmod)
+```
+
+\vspace{.2in}
+
+__Part 1:__
+
+Reconsider the data set that was presented in the final exam for Mini 1.
+Create a new data frame that gives the day-to-day changes in all of the
+rates. Run a principal components analysis on these vectors. Is PCA
+effective in reducing the dimensionality of the rate change vectors?
+Try it with and without scaling the variables first
+and describe how the results change.
+
+
+```{r, Question1}
+library(quantmod)
+library(ggplot2)
+library(plyr)
+
+## Get the data from the final exam
+######################################################################
+fileheader = read.table("commercial_paper_rates.csv",sep=",",nrows=6,stringsAsFactors=FALSE)
+cprfullnames = as.character(c("Time.Period",fileheader[1,-1]))
+cprdata = read.table("commercial_paper_rates.csv",sep=",", header=T,
+                      skip=5,stringsAsFactors = FALSE,
+                      na.strings=c("ND","NA"))
+
+cprdata$Time.Period = as.Date(cprdata$Time.Period, format="%Y-%m-%d")
+SP500 = getSymbols("SP500",src="FRED", auto.assign=FALSE)
+keep = match(time(SP500), cprdata$Time.Period)
+fulldata = cbind(cprdata[keep,],data.frame(SP500))
+fulldata = fulldata[complete.cases(fulldata),]
+######################################################################
+
+dates = fulldata$Time.Period
+dates = dates[2:length(dates)]
+
+data = fulldata[,c(2:ncol(fulldata))]
+data = -1*colwise(diff)(data)
+
+df = cbind(dates, data)
+df_dates = df[,1]
+df_data = df[,c(2:ncol(df))]
+
+df_pca_noscale = prcomp(df_data)
+summary(df_pca_noscale)
+
+df_pca_scale = prcomp(df_data, scale=TRUE)
+summary(df_pca_scale)
+
+```
+
+From the PCA summary, we can see that about 99.95% of the variability in the data is captured from the first principal component and 99.97% from the first two. Moroever, instead of working with each a predictor consisting of 25 features, we are able to just look at the first one or two and we can rest assured that we have captured the variability within the data. 
+
+When the principal componenets were scaled, the amount of variability captured in each of the components was much lower. Whereas the first pc in the unscaled case resulted in 99.95% of the variability, we don't see that level of precision until the 24th (out of 25) pc.
+
+
+\vspace{.2in}
+
+__Part 2:__
+
+As described in lecture, one approach to the time series dimension
+reduction situation we were facing would be to first smooth the time
+series, and then use these smoothed time series as the input to a
+dimension reduction algorithm. We will try this here.
+
+In particular, smooth each time series using `loess()`. I will leave the
+choice of the smoothing parameter up to you. After smoothing, you should
+use the `predict()` function to evaluate the fitted model on a regular
+grid of $x$ values. These smoothed time series are what should be utilized
+in the dimension reduction. Use Isomap. Explore the first two-dimensions
+to see if there is meaningful low-dimensional structure in the plot.
+
+__Comment:__ If you watched lecture, this will make a lot more sense. Be
+sure to watch the lecture prior to attempting this.
+
