@@ -1,0 +1,114 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amssymb}
+\usepackage{amsmath}
+
+\DeclareRobustCommand{\bbone}{\text{\usefont{U}{bbold}{m}{n}1}}
+\DeclareMathOperator{\EX}{\mathbb{E}}% expected value
+
+\title{Financial Data Science Homework Set2}
+\author{
+Jordan Gi
+}
+\date{November 9, 2017}
+
+\begin{document}
+\maketitle
+
+\section*{Question 2}
+
+We estimate the parameters $\alpha$ and $\beta$ of the $\Gamma(\alpha,\beta)$ distribution using the method of moments below. For the following, let 
+$X \sim \Gamma(\alpha,\beta)$, and equate the theoretical moments with the sample mean and variance. 
+		\begin{align*} 
+			\EX\big[X\big] &= \frac{\alpha}{\beta} = \frac{1}{n} \sum_{i=1}^{n}X_{i} = \bar{X} \\
+			\EX\big[X^2\big] - (\EX\big[X\big])^2 &= \frac{\alpha(\alpha+1)}{\beta^2} = \frac{1}{n} \sum_{i=1}^{n} (X_{i} - \bar{X})^2 = S^2 \\
+		\end{align*}
+		
+Manipulating the first and plugging into the second we find that, 
+		\begin{center} 
+			$\frac{\alpha}{\beta} = \bar{X} \implies \frac{\alpha^2}{\bar{X}^2} = \beta^2$
+			$\implies \frac{\alpha(\alpha+1)}{\frac{\alpha^2}{\bar{X}^2}} = S^2$
+		\end{center}
+		
+Solving for $\alpha$, and then using this result to solve for $\beta$, we find that 
+		\begin{align*} 
+			 \alpha &= \frac{\bar{X}}{S^2} \\ 
+			 \beta  &= \frac{\bar{X}^2}{S^2}
+		\end{align*}
+
+
+\section*{Question 3}
+
+Note that: $bias = \EX\big[\widehat{\theta}\big] - \theta$. Substituting the definition of bias into the hint the rest follows,
+		\begin{align*} 
+			MSE(\widehat{\theta}) 								  &= \EX\big[(\widehat{\theta} - \theta)^2\big] \\
+																			      &= \EX\big[((\widehat{\theta} - \EX(\widehat{\theta})) + bias(\widehat{\theta}))^2\big]  \\ 
+																				  &= \EX\big[(\widehat{\theta} - \EX(\widehat{\theta}))^2\big] + 
+																				  2\EX\big[(\widehat{\theta} - \EX(\widehat{\theta}))bias(\widehat{\theta})\big] +
+																				  \EX\big[bias^2(\widehat{\theta})\big] \\
+																				  &= \EX\big[(\widehat{\theta} - \EX(\widehat{\theta}))^2\big] + 
+																				  0 +
+																				  bias^2(\widehat{\theta}) \\
+																				  &= Var(\widehat{\theta}) + bias^2(\widehat{\theta})
+		\end{align*}
+
+
+\section*{Question 4}
+
+\subsection*{Part(a)}
+
+To show that $\widehat{\mu}$ is an unbiased estimator of $\mu$, we must show that $\EX\big[\widehat{\mu}\big] = \mu$. \\
+		\begin{align*} 
+			\EX\big[\widehat{\mu}\big] &= \EX\big[\sum_{i=1}^{n} \omega_{i} X_{i}\big] \\
+														  &= \sum_{i=1}^{n} \omega_{i} \EX\big[X_{i}\big] \\
+														  &= \sum_{i=1}^{n} \omega_{i} \mu \\
+														  &= \mu \sum_{i=1}^{n} \omega_{i}
+		\end{align*}
+Therefore note that if $\sum_{i=1}^{n} \omega_{i} = 1$, then it is clear that $\EX\big[\widehat{\mu}\big] = \mu$ and $\widehat{\mu}$ is an unbiased estimator. 
+
+\subsection*{Part(b)}
+
+To minimize the variance while enforcing the unbiased constraint that $\sum_{i=1}^{n} \omega_{i} = 1$, we follow the hint. \\
+		\begin{align*} 
+			V(\widehat{\mu}) &= \sum_{i=1}^{n} \omega_{i}^2 \sigma_{i}^2 \\
+										 &= \sum_{i=1}^{n-1} \omega_{i}^2 \sigma_{i}^2 + \omega_{n}^2 \sigma_{n}^2 \\
+										 &= \sum_{i=1}^{n-1} \omega_{i}^2 \sigma_{i}^2 + (1-\sum_{i=1}^{n-1} \omega_{i})^2 \sigma_{n}^2 \\
+										 &= \sum_{i=1}^{n-1} \omega_{i}^2 \sigma_{i}^2 + \sigma_{n}^2(1 - 2\sum_{i=1}^{n-1} \omega_{i} + (\sum_{i=1}^{n-1} \omega_{i})^2) 
+		\end{align*}
+		
+To minimize the expression, we set the partial derivative w.r.t. $w_{i}$ equal to zero and solve. 
+		\begin{align*} 
+			V(\widehat{\mu}) &= \sum_{i=1}^{n-1} \omega_{i}^2 \sigma_{i}^2 + \sigma_{n}^2(1 - 2\sum_{i=1}^{n-1} \omega_{i} + (\sum_{i=1}^{n-1} \omega_{i})^2) \\
+			\frac{\partial{V(\widehat{\mu})}}{\partial{\omega_{i}}} &= 2\omega_{i}\sigma_{i}^2 - 2\sigma_{n}^2 + 2\sigma_{n}^2\sum_{i=1}^{n-1}\omega_{i} \\
+			0 &= \omega_{i}\sigma_{i}^2 - \sigma_{n}^2 + \sigma_{n}^2(1 - \omega_{n}) \\
+			\omega_{i} &= \frac{\sigma_{n}^2}{\sigma_{i}^2} \omega_{n}
+		\end{align*}
+		
+Summing each side $\forall i \in \{1, 2, ..., n\}$ and solving for $\omega_{n}$, we find that
+
+		\[  \omega_{n} = \frac{1}{\sigma_{n}^2 \sum_{i=1}^{n} \frac{1}{\sigma_{i}^2}}	\]
+
+Plugging this back into our previous equation, we finally find the the $\omega_{i}$ that will minimize the variance is given as follows
+
+		\[  \omega_{i} = \frac{\sigma_{n}^2}{\sigma_{i}^2} \frac{1}{\sigma_{n}^2 \sum_{i=1}^{n} \frac{1}{\sigma_{i}^2}} = 
+		\frac{\frac{1}{\sigma_{i}^2}}{\sum_{j=1}^{n	}\frac{1}{\sigma_{j}^2}} \]
+
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,161 @@
+---
+title: "Homework 5"
+author: "Jordan Giebas"
+date: "Due Thursday, November 30 at 3:00 PM"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(quantmod)
+```
+
+__Please do not submit photos of your homework.__ Scanners
+are available for your use.
+
+\vspace{.2in}
+
+__Question 1__ 
+
+```{r}
+options("getSymbols.yahoo.warning"=FALSE)
+options("getSymbols.warning4.0"=FALSE)
+source("http://www.stat.cmu.edu/~cschafer/MSCF/ModelSelectionExample.txt")
+library(fGarch)
+library(ggplot2)
+library(ggfortify)
+
+Kellogg = getSymbols("K", from="2010-1-1", to="2016-12-31", auto.assign=F)
+lwrk = data.frame(weeklyReturn(Ad(Kellogg), type="log"))
+
+# Generalized Error Distribution
+print("Generalized Error Distribution trial")
+ged_out = FitGED(lwrk$weekly.returns)
+print(ged_out$mle)
+
+# Non-standard T-distribution
+print("Non-standard T-distribution trial")
+nstd_out = FitNonStdT(lwrk$weekly.returns)
+print(nstd_out$mle)
+
+# Skewed T-distribution (no shift)
+print("Skewed T-distribution (shifted, optimized) trial")
+skt_out = FitSkewT(lwrk$weekly.returns)
+print(skt_out$mle)
+
+# Skewed T-distribution (shifted, optimized)
+print("Skewed T-distribution (shifted, optimized) trial")
+sktShiftOpt_out = FitSkewT(lwrk$weekly.returns, allowshift=T, control=list(maxit=1000))
+print(round(sktShiftOpt_out$mle,6))
+
+# Normal Distribution
+print("Normal Distribution trial")
+n = length(lwrk$weekly.returns)
+norm_out = c(mean(lwrk$weekly.returns), sqrt(var(lwrk$weekly.returns)*(n-1)/n))
+print(norm_out)
+
+### For each trial, compute LLH
+
+# Generalized Error Distribution
+print("Generalized Error Distribution plot/llh")
+print(sum(dged(lwrk$weekly.returns, ged_out$mle[1], ged_out$mle[2], ged_out$mle[3], log=TRUE)))
+
+# Non-standard T-distribution
+print("Non-standard T-distribution llh")
+print(sum(dstd(lwrk$weekly.returns, nstd_out$mle[1], nstd_out$mle[2], nstd_out$mle[3], log=TRUE)))
+
+# Skewed T-distribution (no shift)
+print("Skewed T-distribution (no shift) llh")
+print(sum(dSkewT(lwrk$weekly.returns, skt_out$mle[1], skt_out$mle[2], skt_out$mle[3], skt_out$mle[4], log=TRUE)))
+
+# Skewed T-distribution (shifted, optimized)
+print("Skewed T-distribution (shifted, optimized) llh")
+print(sum(dSkewT(lwrk$weekly.returns, sktShiftOpt_out$mle[1], sktShiftOpt_out$mle[2], sktShiftOpt_out$mle[3], sktShiftOpt_out$mle[4], sktShiftOpt_out$mle[5], log=TRUE)))
+
+# Normal Distribution
+print("Normal Distribution llh")
+print(sum(dnorm(lwrk$weekly.returns, norm_out[1], norm_out[2], log=TRUE)))
+
+
+### Constructing plots, code taken from Model_Selection.txt from Canvas
+ggplot(lwrk,aes(x=weekly.returns)) +
+  geom_density(bw="SJ",aes(color="kde")) +
+  stat_function(fun=dnorm, aes(color="normal"),
+                args=list(mean=norm_out[1],sd=norm_out[2])) +
+  stat_function(fun=dged, aes(color="ged"),
+                args=list(mean=ged_out$mle[1],sd=ged_out$mle[2],nu=ged_out$mle[3])) +
+  stat_function(fun=dstd, aes(color="nonstdT"),
+                args=list(mean=nstd_out$mle[1],sd=nstd_out$mle[2],nu=nstd_out$mle[3])) +
+  stat_function(fun=dSkewT, aes(color="skewT"),
+                args=list(k=skt_out$mle[1],n=skt_out$mle[2],lambda=skt_out$mle[3],sigma2=skt_out$mle[4])) +
+  stat_function(fun=dSkewT, aes(color="skewTshift"),
+                args=list(k=sktShiftOpt_out$mle[1],n=sktShiftOpt_out$mle[2],lambda=sktShiftOpt_out$mle[3],sigma2=sktShiftOpt_out$mle[4],shift=sktShiftOpt_out$mle[5])) +
+  scale_color_manual(name="",
+                     values=c("kde"="black","normal"="blue",
+                              "ged"="yellow","nonstdT"="green",
+                              "skewT"="red","skewTshift"="brown")) +
+  labs(x="Log Daily Return",title="Data for Kellogg's (K)",subtitle="January 2010 through December 2016") +
+  scale_y_log10()
+
+
+## It seems that the Non-Standard T-Distribution has the maximal LLH... doesn't necessarily mean it's the best though.
+
+### Determine Minimal AIC
+
+print("Finding minimal AIC")
+
+# Parameter Vector
+p_vec = c(3,3,4,5,2)
+
+# LLH Vector for each
+ged_llh = sum(dged(lwrk$weekly.returns, ged_out$mle[1], ged_out$mle[2], ged_out$mle[3], log=TRUE))
+nstd_llh = sum(dstd(lwrk$weekly.returns, nstd_out$mle[1], nstd_out$mle[2], nstd_out$mle[3], log=TRUE))
+skwt_llh = sum(dSkewT(lwrk$weekly.returns, skt_out$mle[1], skt_out$mle[2], skt_out$mle[3], skt_out$mle[4], log=TRUE))
+skwtShiftOpt_llh = sum(dSkewT(lwrk$weekly.returns, sktShiftOpt_out$mle[1], sktShiftOpt_out$mle[2], sktShiftOpt_out$mle[3], sktShiftOpt_out$mle[4], log=TRUE))
+norm_llh = sum(dnorm(lwrk$weekly.returns, norm_out[1], norm_out[2], log=TRUE))
+
+llh_vec = c(ged_llh, nstd_llh, skwt_llh, skwtShiftOpt_llh, norm_llh)
+
+aic_func = function(p,llh) {
+  
+  return ( -2*llh + 2*p ) 
+  
+}
+
+aic_vec = c()
+for ( j in 1:length(p_vec) ) {
+  aic_vec[j] = aic_func(p_vec[j], llh_vec[j])
+}
+
+print("aic_vec:")
+print(aic_vec)
+print("Min of aic_vec:")
+print(min(aic_vec))
+print("Max of llh_vec:")
+print(max(llh_vec))
+
+
+```
+
+By AIC, the model selected is the Non-Standard T-distribution since it is the minimal AIC out of the models compared. It has an AIC value of -1850.368. Additionally, the model that yielded the maximal loglikelihood was the Non-Standard T-distribution as well. Therefore, it seems that the Non-Standard T-distribution would be the best model for modelling log returns, perhaps the usage of the Normal Distribution is just because of its ease. 
+
+__Question 2__ 
+
+Scanned in jgiebas_HW5.pdf
+
+__Question 3__ 
+
+Scanned in jgiebas_HW5.pdf
+
+
+
+
+
+
+
+
+
+
+
