@@ -1,0 +1,133 @@
+---
+title: "Homework 1 Solutions"
+author: "46-923, Fall 2017"
+date: "Due Wednesday, November 1 at 5:30 PM"
+output: pdf_document
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(quantmod)
+library(vegan)
+```
+
+You should submit the Rmd file for your analysis.
+Name the file as `YOURANDREWID_HW1.Rmd`
+and submit it via Canvas. Also submit the `.pdf` file that
+is produced.
+
+\vspace{.2in}
+
+__Part 1:__
+
+Reconsider the data set that was presented in the final exam for Mini 1.
+Create a new data frame that gives the day-to-day changes in all of the
+rates. Run a principal components analysis on these vectors. Is PCA
+effective in reducing the dimensionality of the rate change vectors?
+Try it with and without scaling the variables first
+and describe how the results change.
+
+\vspace{.2in}
+```{r,warning=F,message=F}
+library(tidyverse)
+
+fileheader = read.table("commercial_paper_rates.csv",
+                        sep=",", nrows=6,stringsAsFactors=FALSE)
+cprfullnames = as.character(c("Time.Period",fileheader[1,-1]))
+cprdata = read.table("commercial_paper_rates.csv",
+                     sep=",", header=T, skip=5,stringsAsFactors = FALSE, 
+                     na.strings=c("ND","NA"))
+cprdata$Time.Period = as.Date(cprdata$Time.Period, format="%Y-%m-%d")
+SP500 = getSymbols("SP500",src="FRED", auto.assign=FALSE)
+keep = match(time(SP500), cprdata$Time.Period)
+fulldata = cbind(cprdata[keep,],data.frame(SP500))
+shifts=apply(cprdata[,2:25],2,diff)
+
+#try without scaling
+pcaout = princomp(shifts,subset=complete.cases(shifts))
+#summary(pcaout)
+
+#try with scaling
+pcaout2=princomp(shifts,subset=complete.cases(shifts),cor=T)
+#summary(pcaout2)
+
+   
+
+```
+We can see that before scaling, only 
+61% of variance can be explained by the first three components. After 
+scaling, the proportion that can be explained by the first three components is only 0.54, which is even smaller than that without scaling.  The main issue here is that the SP500 is on a different scale from the other variables. However, scaling before applying PCA can lead to loss of information, because each component is scaled to have the same variance even if some of them actually contain more information than the others.
+
+__Part 2:__
+
+As described in lecture, one approach to the time series dimension
+reduction situation we were facing would be to first smooth the time
+series, and then use these smoothed time series as the input to a
+dimension reduction algorithm. We will try this here.
+
+In particular, smooth each time series using `loess()`. I will leave the
+choice of the smoothing parameter up to you. After smoothing, you should
+use the `predict()` function to evaluate the fitted model on a regular
+grid of $x$ values. These smoothed time series are what should be utilized
+in the dimension reduction. Use Isomap. Explore the first two-dimensions
+to see if there is meaningful low-dimensional structure in the plot.
+
+__Comment:__ If you watched lecture, this will make a lot more sense. Be
+sure to watch the lecture prior to attempting this.
+__1.__ Import the data.
+```{r}
+stock = read.table("stocksample.txt", header = T, sep = "\t", comment.char = "")
+```
+
+__2.__ Smooth the time series.
+```{r}
+smoothedstock = stock
+for (i in 1:nrow(stock)){
+  holdlo = loess(as.double(stock[i, 5:34]) ~ c(1:30), 
+                 degree = 1, span = 0.5)
+  smoothedstock[i, 5:34] = predict(holdlo)
+}
+```
+
+__3.__ Run Isomap.
+```{r}
+# scale each smoothed time series 
+# to mean zero and variance one.
+smoothedstockscl = apply(smoothedstock[, 5:34], 1, scale)
+# construct a distance matrix between the time series
+stockdistmat = dist(t(smoothedstockscl))
+# run Isomap procedure with k = 5
+isooutstocks = isomap(stockdistmat, k = 5)
+stock = cbind(stock, isooutstocks$points[, 1:5])
+
+# plot the first two dimensions
+ggplot(stock, aes(x = stock[, 35], y = stock[, 36], 
+                  color = sector)) + 
+  geom_point() +
+  labs(x = expression(U[1]), y = expression(U[2]), 
+       color = "Sector")
+```
+
+__4.__ Explore the first two dimension.
+```{r}
+# explore the first two dimension
+plot(stock[, 35], stock[, 36], pch = ".", cex = 4.0)
+#identify(stock[, 35], stock[, 36])
+
+# Stocks chosen are #87, 441, and 747
+plot(smoothedstockscl[, 87], type = "l")
+plot(smoothedstockscl[, 441], type = "l")
+plot(smoothedstockscl[, 747], type = "l")
+```
+
+```{r}
+# To explore the isomap output further, 225, 420, and 806 are examined
+plot(smoothedstockscl[, 225], type = "l")
+plot(smoothedstockscl[, 420], type = "l")
+plot(smoothedstockscl[, 806], type = "l")
+```
+
+From the graphs we can see that there is some structure in the low dimension space. The three curves has similar shape in general. I would say Isomap works relatively well as a dimension reduction tool here.
+

@@ -1,0 +1,93 @@
+---
+title: "Homework 2 Solutions (Question 1)"
+author: "46-923, Fall 2017"
+date: "November 15 2017"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+\large
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(quantmod)
+library(rvest)
+library(ggplot2)
+```
+
+You should submit the Rmd and pdf file for Question 1.
+You should also submit a pdf file with your responses to
+Questions 2 through 4. There is nothing wrong with handwritten
+solutions; I am not asking you to learn Latex to complete
+the homework.
+
+__Please do not submit photos of your homework.__ Scanners
+are available for your use.
+
+\vspace{.2in}
+
+__Question 1:__
+
+Run a __both__ K-means and hierarchical clustering algorithm on the
+yield curve shift data that was considered back when PCA was
+introduced. Discuss anything interesting that you find. You are free
+to make decisions regarding settings to the algorithms as you see fit.
+
+_Note_:
+There are different things that can be said from running the two algorithms. 
+This solutions includes only one example, but many others could be possible.
+
+
+```{r message=FALSE}
+# Download and format the data
+fullYCweb = read_html("https://goo.gl/j97141")
+tvdnodes = html_nodes(fullYCweb, ".text_view_data")
+tableelements = html_text(tvdnodes)
+YCdata = matrix(tableelements, ncol=12,byrow=TRUE)
+YCdata =data.frame(YCdata, stringsAsFactors=FALSE)
+names(YCdata) = c("Date","1mo","3mo","6mo","1yr","2yr","3yr",
+                  "5yr","7yr","10yr","20yr","30yr")
+YCdata$Date = as.Date(YCdata$Date,format="%m/%d/%y")
+YCdata[,2:12] = suppressWarnings(apply(YCdata[,2:12],2,as.numeric))
+```
+
+
+```{r}
+# Data processing and formatting
+YCdata = YCdata[complete.cases(YCdata),]
+YCdata[2:nrow(YCdata),2:12] = data.frame(apply(YCdata[,2:12], 2, diff))
+YCdata = YCdata[2:nrow(YCdata),]
+YCdata$Year = substr(YCdata$Date, 1,4)
+YCdata$Month = substr(YCdata$Date, 6,7)
+YCdata$Day = substr(YCdata$Date, 9,10)
+
+# Cluster and plot
+kmout = kmeans(YCdata[,2:12], centers = 17, nstart = 10)
+YCdata$kmclust = factor(kmout$cluster)
+# We plot all the resolutions available: Year, Day and Month
+ggplot(YCdata, aes(x=kmclust, fill=Year)) + 
+  geom_bar() + labs(x="Cluster",y="Count", fill="Year")
+
+ggplot(YCdata, aes(x=kmclust, fill=Day)) + 
+  geom_bar() + labs(x="Cluster",y="Count", fill="Day")
+
+ggplot(YCdata, aes(x=kmclust, fill=Month)) + 
+  geom_bar() + labs(x="Cluster",y="Count", fill="Month")
+
+# We then plot the dendogram from hierarchical clustering
+# As the full dendogram would not be really legible, we sample
+# just 75 curves
+
+YCdata_sample = YCdata[sample(1:nrow(YCdata), 75, replace=FALSE),]
+hcout = hclust(dist(YCdata_sample[,2:12]),method="complete")
+plot(hcout, labels = YCdata_sample$Date, cex=0.35,sub="", xlab="")
+
+```
+
+_K-Means Clustering_: While there is not much separation at a day and month resolution, observations from 2007 to 2010 seem to usually be assigned together in separate clusters, which is interesting considering the adverse financial situations of those years. Further investigation on the stability of such clustering method would be needed to better evaluation.
+
+_Hierarchical Clustering_: Apart from a couple of cases in which yield shift from around the same years seems to be clustering together, it is difficult to identify a general trend in this case.
+
+
+
